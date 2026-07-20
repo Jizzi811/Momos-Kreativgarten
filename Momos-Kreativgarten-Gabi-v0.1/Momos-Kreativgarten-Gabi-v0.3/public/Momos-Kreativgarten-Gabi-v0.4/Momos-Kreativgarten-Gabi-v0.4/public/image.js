@@ -32,16 +32,25 @@ function previewEditImage(event) {
 }
 
 async function shrinkImage(file) {
-  const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
-  const width = Math.max(1, Math.round(bitmap.width * scale));
-  const height = Math.max(1, Math.round(bitmap.height * scale));
+  const sourceUrl = URL.createObjectURL(file);
+  const source = await new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('Das Foto konnte auf diesem Gerät nicht geöffnet werden.'));
+    image.src = sourceUrl;
+  });
+  const scale = Math.min(1, 1600 / Math.max(source.naturalWidth, source.naturalHeight));
+  const width = Math.max(1, Math.round(source.naturalWidth * scale));
+  const height = Math.max(1, Math.round(source.naturalHeight * scale));
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
-  canvas.getContext('2d').drawImage(bitmap, 0, 0, width, height);
-  bitmap.close();
-  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', .86));
+  const context = canvas.getContext('2d', { alpha:false });
+  context.fillStyle = '#ffffff';
+  context.fillRect(0, 0, width, height);
+  context.drawImage(source, 0, 0, width, height);
+  URL.revokeObjectURL(sourceUrl);
+  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', .9));
   if (!blob) throw new Error('Das Foto konnte nicht vorbereitet werden.');
   const dataUrl = await new Promise((resolve, reject) => {
     const reader = new FileReader();

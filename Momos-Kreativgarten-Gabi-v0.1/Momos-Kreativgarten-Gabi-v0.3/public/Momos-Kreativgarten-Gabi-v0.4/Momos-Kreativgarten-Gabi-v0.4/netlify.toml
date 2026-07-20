@@ -21,3 +21,7 @@ status=200
 from="/api/music-status"
 to="/.netlify/functions/music-status"
 status=200
+[[redirects]]
+from="/api/music-credits"
+to="/.netlify/functions/music-credits"
+status=200

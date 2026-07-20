@@ -7,5 +7,9 @@ to="/.netlify/functions/create"
 status=200
 [[redirects]]
 from="/api/image"
-to="/.netlify/functions/image"
+to="/.netlify/functions/image-background"
+status=200
+[[redirects]]
+from="/api/image-status"
+to="/.netlify/functions/image-status"
 status=200

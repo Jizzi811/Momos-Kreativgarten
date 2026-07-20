@@ -1,5 +1,15 @@
 const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
 
+function downloadableImage(dataUrl, filename, alt) {
+  const [header, encoded] = String(dataUrl).split(',');
+  const mime = header.match(/^data:([^;]+);base64$/)?.[1] || 'image/jpeg';
+  const binary = atob(encoded || '');
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  const objectUrl = URL.createObjectURL(new Blob([bytes], { type:mime }));
+  return `<img src="${objectUrl}" alt="${alt}"><a class="download" href="${objectUrl}" download="${filename}">Bild herunterladen</a>`;
+}
+
 const imageOpenTool = openTool;
 openTool = function(key) {
   imageOpenTool(key);
@@ -68,7 +78,7 @@ async function makeEditedImage() {
       const data = await readJson(statusResponse);
       if (!statusResponse.ok || data.state === 'error') throw new Error(data.error || 'Die Fotobearbeitung ist fehlgeschlagen.');
       if (data.state === 'done' && data.image) {
-        box.innerHTML = `<img src="${data.image}" alt="Von Momo bearbeitetes Foto"><a class="download" href="${data.image}" download="momos-bearbeitetes-foto.${action === 'Hintergrund entfernen' ? 'png' : 'jpg'}">Bearbeitetes Foto herunterladen</a>`;
+        box.innerHTML = downloadableImage(data.image, `momos-bearbeitetes-foto.${action === 'Hintergrund entfernen' ? 'png' : 'jpg'}`, 'Von Momo bearbeitetes Foto');
         button.textContent = 'Noch einmal bearbeiten';
         return;
       }
@@ -120,7 +130,7 @@ async function createImage(prompt, format, box) {
       throw new Error(data.error || 'Die Bilderstellung ist fehlgeschlagen.');
     }
     if (data.state === 'done' && data.image) {
-      box.innerHTML = `<img src="${data.image}" alt="Von Momo erstelltes Bild"><a class="download" href="${data.image}" download="momos-bild.jpg">Bild herunterladen</a>`;
+      box.innerHTML = downloadableImage(data.image, 'momos-bild.jpg', 'Von Momo erstelltes Bild');
       return;
     }
     if (attempt === 14) {

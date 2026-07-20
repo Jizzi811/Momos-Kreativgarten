@@ -56,13 +56,12 @@ async function makeSong() {
     else lyrics = await createLyrics(values);
 
     $('#output').textContent = lyrics === '[Instrumental]' ? 'Instrumentalstück ohne Gesang' : lyrics;
-    submit.textContent = 'ACE-Step komponiert …';
-    const duration = Math.max(30, Math.min(120, Number.parseInt(values.dauer, 10) || 60));
+    submit.textContent = 'Momo komponiert …';
     const prompt = `${values.stil}, ${values.stimmung}, ${values.stimme}, German song, warm polished production`;
     const startResponse = await fetch('/api/music-start', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ prompt, lyrics, duration })
+      body: JSON.stringify({ prompt, lyrics, title: String(values.idee).slice(0, 80) })
     });
     const start = await parseResponse(startResponse);
     if (start.error || !start.id) throw new Error(start.error || 'Der Musikauftrag konnte nicht gestartet werden.');
@@ -75,11 +74,11 @@ async function makeSong() {
         throw new Error(status.error || 'Die Musikerstellung wurde beendet.');
       }
       if (status.status === 'succeeded' && status.audio) {
-        box.innerHTML = `<div class="song-player"><h3>Momos neues Lied</h3><p>Fertig komponiert mit ACE-Step 1.5</p><audio controls preload="metadata" src="${status.audio}"></audio><a class="download" href="${status.audio}" target="_blank" rel="noopener" download="momos-lied.mp3">MP3 öffnen und herunterladen</a>${lyrics === '[Instrumental]' ? '' : `<details class="song-lyrics"><summary>Liedtext anzeigen</summary><pre>${escapeHtml(lyrics)}</pre></details>`}</div>`;
+        box.innerHTML = `<div class="song-player"><h3>${escapeHtml(status.title || 'Momos neues Lied')}</h3><p>Fertig komponiert im Songstudio</p><audio controls preload="metadata" src="${escapeHtml(status.audio)}"></audio><a class="download" href="${escapeHtml(status.audio)}" target="_blank" rel="noopener" download="momos-lied.mp3">Lied öffnen und herunterladen</a>${lyrics === '[Instrumental]' ? '' : `<details class="song-lyrics"><summary>Liedtext anzeigen</summary><pre>${escapeHtml(lyrics)}</pre></details>`}</div>`;
         submit.textContent = 'Noch ein Lied erstellen 🎵';
         return;
       }
-      if (attempt === 20) box.innerHTML = '<div class="song-progress">Die Cloud-GPU komponiert noch. Ein ganzes Lied braucht manchmal etwas länger.</div>';
+      if (attempt === 20) box.innerHTML = '<div class="song-progress">Momo komponiert noch. Ein ganzes Lied braucht manchmal etwas länger.</div>';
     }
     throw new Error('Das Lied braucht ungewöhnlich lange. Bitte später erneut versuchen.');
   } catch (error) {
@@ -100,3 +99,18 @@ $('#form').addEventListener('submit', event => {
   event.stopImmediatePropagation();
   makeSong();
 }, true);
+
+const originalOpenTool = openTool;
+openTool = function(key) {
+  originalOpenTool(key);
+  if (key !== 'music') return;
+  const form = $('#form');
+  form.insertAdjacentHTML('afterbegin', '<div id="musicCredits" class="music-credits">Songstudio wird geprüft …</div>');
+  fetch('/api/music-credits', { cache: 'no-store' }).then(parseResponse).then(data => {
+    const label = $('#musicCredits');
+    if (!label) return;
+    if (!data.configured) label.textContent = 'Das Songstudio wird noch eingerichtet.';
+    else if (data.credits === null) label.textContent = 'Songstudio ist bereit.';
+    else label.textContent = `Songstudio bereit · ${data.credits} Credits verfügbar · dieses Lied benötigt 5 Credits`;
+  }).catch(() => { const label = $('#musicCredits'); if (label) label.textContent = 'Songstudio ist bereit.'; });
+};

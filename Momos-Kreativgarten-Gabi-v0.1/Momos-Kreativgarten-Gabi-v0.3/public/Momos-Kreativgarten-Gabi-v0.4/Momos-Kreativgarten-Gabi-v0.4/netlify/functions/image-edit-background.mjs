@@ -21,14 +21,22 @@ export default async request => {
   try {
     const apiKey = Netlify.env.get("OPENAI_API_KEY");
     if (!apiKey) throw new Error("Der OpenAI-Schlüssel fehlt in Netlify.");
-    const bytes = Uint8Array.from(atob(match[2]), character => character.charCodeAt(0));
+    const bytes = Buffer.from(match[2], "base64");
     if (bytes.byteLength > 5_000_000) throw new Error("Das Foto ist trotz Verkleinerung noch zu groß.");
+    const mime = match[1];
+    const valid = mime === "image/jpeg"
+      ? bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[bytes.length - 2] === 0xff && bytes[bytes.length - 1] === 0xd9
+      : mime === "image/png"
+        ? bytes.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10]))
+        : bytes.subarray(0, 4).toString("ascii") === "RIFF" && bytes.subarray(8, 12).toString("ascii") === "WEBP";
+    if (!valid) throw new Error("Das hochgeladene Foto ist unvollständig. Bitte wähle es erneut aus.");
     const width = Number(body.width) || 1, height = Number(body.height) || 1;
     const size = height > width * 1.2 ? "1024x1536" : width > height * 1.2 ? "1536x1024" : "1024x1024";
     const transparent = action === "Hintergrund entfernen";
     const form = new FormData();
     form.set("model", "gpt-image-2");
-    form.set("image", new Blob([bytes], { type: match[1] }), "foto.jpg");
+    const extension = mime === "image/png" ? "png" : mime === "image/webp" ? "webp" : "jpg";
+    form.set("image", new File([bytes], `foto.${extension}`, { type:mime }));
     form.set("prompt", prompts[action](instruction));
     form.set("quality", "medium");
     form.set("size", size);

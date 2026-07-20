@@ -14,6 +14,10 @@ from="/api/image-status"
 to="/.netlify/functions/image-status"
 status=200
 [[redirects]]
+from="/api/image-edit"
+to="/.netlify/functions/image-edit-background"
+status=200
+[[redirects]]
 from="/api/music-start"
 to="/.netlify/functions/music-start"
 status=200

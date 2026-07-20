@@ -32,7 +32,12 @@ function previewEditImage(event) {
 }
 
 async function shrinkImage(file) {
-  const sourceUrl = URL.createObjectURL(file);
+  const sourceUrl = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Das Foto konnte nicht gelesen werden.'));
+    reader.readAsDataURL(file);
+  });
   const source = await new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => resolve(image);
@@ -49,7 +54,6 @@ async function shrinkImage(file) {
   context.fillStyle = '#ffffff';
   context.fillRect(0, 0, width, height);
   context.drawImage(source, 0, 0, width, height);
-  URL.revokeObjectURL(sourceUrl);
   const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', .9));
   if (!blob) throw new Error('Das Foto konnte nicht vorbereitet werden.');
   const dataUrl = await new Promise((resolve, reject) => {

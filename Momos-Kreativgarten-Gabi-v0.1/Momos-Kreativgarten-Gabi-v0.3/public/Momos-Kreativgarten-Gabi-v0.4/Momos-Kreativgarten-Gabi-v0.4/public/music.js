@@ -1,5 +1,3 @@
-const sleep = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
-
 async function parseResponse(response) {
   const text = await response.text();
   if (!text) return {};
@@ -13,7 +11,7 @@ async function createLyrics(values) {
     `Musikstil: ${values.stil}`,
     `Stimmung: ${values.stimmung}`,
     `Stimme: ${values.stimme}`,
-    `Länge: ${values.dauer}`
+    'Schreibe einen gut singbaren deutschen Liedtext mit klar gekennzeichneten Strophen und Refrain.'
   ].join('\n');
   const response = await fetch('/api/create', {
     method: 'POST',
@@ -21,12 +19,28 @@ async function createLyrics(values) {
     body: JSON.stringify({ task: 'song', input })
   });
   const data = await parseResponse(response);
-  if (data.error) throw new Error(data.error);
+  if (!response.ok || data.error) throw new Error(data.error || 'Momo konnte den Liedtext nicht schreiben.');
   return data.text;
 }
 
-async function makeSong() {
-  const form = $('#form');
+function sunoStyle(values) {
+  const voice = values.stimme === 'Momo entscheidet' ? 'passende ausdrucksstarke Gesangsstimme' : values.stimme;
+  return `${values.stil}, ${values.stimmung}, ${voice}, deutscher Song, warme klare Produktion, eingängiger Refrain`;
+}
+
+async function copyText(text, button, success) {
+  try {
+    await navigator.clipboard.writeText(text);
+    const old = button.textContent;
+    button.textContent = success;
+    setTimeout(() => { button.textContent = old; }, 1800);
+  } catch {
+    alert('Das Kopieren hat nicht geklappt. Bitte markiere den Text und kopiere ihn von Hand.');
+  }
+}
+
+async function prepareForSuno() {
+  const form = document.querySelector('#form');
   const values = Object.fromEntries(new FormData(form));
   if (!String(values.idee || '').trim()) {
     alert('Bitte beschreibe kurz, worum es in dem Lied gehen soll.');
@@ -39,50 +53,29 @@ async function makeSong() {
 
   const submit = form.querySelector('.submit');
   submit.disabled = true;
-  submit.textContent = 'Momo bereitet dein Lied vor …';
-  $('#result').classList.remove('hidden');
-  $('#output').textContent = 'Momo sammelt Melodie, Stimmung und Worte …';
-  let box = $('#songResult');
-  if (!box) {
-    $('#result').insertAdjacentHTML('beforeend', '<div id="songResult"></div>');
-    box = $('#songResult');
-  }
-  box.innerHTML = '<div class="song-progress">Momo schreibt und komponiert. Das dauert meistens ein bis zwei Minuten.</div>';
+  submit.textContent = 'Momo bereitet alles vor …';
+  document.querySelector('#result').classList.remove('hidden');
+  document.querySelector('#output').textContent = 'Momo schreibt und sortiert deine Songidee …';
 
   try {
-    let lyrics;
-    if (values.liedart === 'Nur instrumental') lyrics = '[Instrumental]';
-    else if (values.liedart === 'Ich habe einen eigenen Liedtext') lyrics = values.liedtext;
+    let lyrics = '';
+    if (values.liedart === 'Nur instrumental') lyrics = 'Instrumental – ohne Liedtext';
+    else if (values.liedart === 'Ich habe einen eigenen Liedtext') lyrics = values.liedtext.trim();
     else lyrics = await createLyrics(values);
-
-    $('#output').textContent = lyrics === '[Instrumental]' ? 'Instrumentalstück ohne Gesang' : lyrics;
-    submit.textContent = 'Momo komponiert …';
-    const prompt = `${values.stil}, ${values.stimmung}, ${values.stimme}, German song, warm polished production`;
-    const startResponse = await fetch('/api/music-start', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ prompt, lyrics, title: String(values.idee).slice(0, 80) })
-    });
-    const start = await parseResponse(startResponse);
-    if (start.error || !start.id) throw new Error(start.error || 'Der Musikauftrag konnte nicht gestartet werden.');
-
-    for (let attempt = 0; attempt < 180; attempt += 1) {
-      await sleep(2500);
-      const statusResponse = await fetch(`/api/music-status?id=${encodeURIComponent(start.id)}`, { cache: 'no-store' });
-      const status = await parseResponse(statusResponse);
-      if (status.error || status.status === 'failed' || status.status === 'canceled') {
-        throw new Error(status.error || 'Die Musikerstellung wurde beendet.');
-      }
-      if (status.status === 'succeeded' && status.audio) {
-        box.innerHTML = `<div class="song-player"><h3>${escapeHtml(status.title || 'Momos neues Lied')}</h3><p>Fertig komponiert im Songstudio</p><audio controls preload="metadata" src="${escapeHtml(status.audio)}"></audio><a class="download" href="${escapeHtml(status.audio)}" target="_blank" rel="noopener" download="momos-lied.mp3">Lied öffnen und herunterladen</a>${lyrics === '[Instrumental]' ? '' : `<details class="song-lyrics"><summary>Liedtext anzeigen</summary><pre>${escapeHtml(lyrics)}</pre></details>`}</div>`;
-        submit.textContent = 'Noch ein Lied erstellen 🎵';
-        return;
-      }
-      if (attempt === 20) box.innerHTML = '<div class="song-progress">Momo komponiert noch. Ein ganzes Lied braucht manchmal etwas länger.</div>';
+    const style = sunoStyle(values);
+    const output = document.querySelector('#output');
+    output.textContent = lyrics;
+    let box = document.querySelector('#songResult');
+    if (!box) {
+      document.querySelector('#result').insertAdjacentHTML('beforeend', '<div id="songResult"></div>');
+      box = document.querySelector('#songResult');
     }
-    throw new Error('Das Lied braucht ungewöhnlich lange. Bitte später erneut versuchen.');
+    box.innerHTML = `<div class="song-player"><h3>Alles für Suno ist vorbereitet</h3><p><b>Musikstil für Suno:</b><br>${escapeHtml(style)}</p><div class="suno-actions"><button type="button" id="copyLyrics">Liedtext kopieren</button><button type="button" id="copyStyle">Musikstil kopieren</button><a class="download" href="https://suno.com/create" target="_blank" rel="noopener">Suno öffnen ↗</a></div><p class="suno-hint">In Suno „Custom“ auswählen, Liedtext und Musikstil einfügen und anschließend auf „Create“ drücken.</p></div>`;
+    document.querySelector('#copyLyrics').onclick = event => copyText(lyrics, event.currentTarget, 'Liedtext kopiert ✓');
+    document.querySelector('#copyStyle').onclick = event => copyText(style, event.currentTarget, 'Musikstil kopiert ✓');
+    submit.textContent = 'Neue Songidee vorbereiten 🎵';
   } catch (error) {
-    box.innerHTML = `<div class="song-progress">${escapeHtml(error.message)}</div>`;
+    document.querySelector('#output').textContent = error.message;
     submit.textContent = 'Noch einmal versuchen';
   } finally {
     submit.disabled = false;
@@ -90,27 +83,12 @@ async function makeSong() {
 }
 
 function escapeHtml(value) {
-  return String(value).replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[character]));
+  return String(value).replace(/[&<>"']/g, character => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' }[character]));
 }
 
-$('#form').addEventListener('submit', event => {
+document.querySelector('#form').addEventListener('submit', event => {
   if (current !== 'music') return;
   event.preventDefault();
   event.stopImmediatePropagation();
-  makeSong();
+  prepareForSuno();
 }, true);
-
-const originalOpenTool = openTool;
-openTool = function(key) {
-  originalOpenTool(key);
-  if (key !== 'music') return;
-  const form = $('#form');
-  form.insertAdjacentHTML('afterbegin', '<div id="musicCredits" class="music-credits">Songstudio wird geprüft …</div>');
-  fetch('/api/music-credits', { cache: 'no-store' }).then(parseResponse).then(data => {
-    const label = $('#musicCredits');
-    if (!label) return;
-    if (!data.configured) label.textContent = 'Das Songstudio wird noch eingerichtet.';
-    else if (data.credits === null) label.textContent = 'Songstudio ist bereit.';
-    else label.textContent = `Songstudio bereit · ${data.credits} Credits verfügbar · dieses Lied benötigt 5 Credits`;
-  }).catch(() => { const label = $('#musicCredits'); if (label) label.textContent = 'Songstudio ist bereit.'; });
-};

@@ -40,7 +40,6 @@ export default async request => {
     form.set("prompt", prompts[action](instruction));
     form.set("quality", "medium");
     form.set("size", size);
-    form.set("input_fidelity", "high");
     form.set("output_format", transparent ? "png" : "jpeg");
     if (!transparent) form.set("output_compression", "78");
     const response = await fetch("https://api.openai.com/v1/images/edits", { method:"POST", headers:{ authorization:`Bearer ${apiKey}` }, body:form });

@@ -60,4 +60,5 @@ h1{font-size:41px}
 .toolhead img{width:90px;height:90px}
 .workspace{padding:20px 14px}.fields{padding:18px 14px}.toolhead{gap:14px}.toolhead p{overflow-wrap:anywhere}
 .suno-actions{display:grid!important;grid-template-columns:1fr}.suno-actions button,.suno-actions .download{text-align:center;width:100%;box-sizing:border-box}
+.result>.image-result{display:block}.image-result .download{display:block;width:100%;box-sizing:border-box;margin-top:14px;text-align:center}
 }

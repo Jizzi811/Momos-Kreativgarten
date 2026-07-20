@@ -13,3 +13,11 @@ status=200
 from="/api/image-status"
 to="/.netlify/functions/image-status"
 status=200
+[[redirects]]
+from="/api/music-start"
+to="/.netlify/functions/music-start"
+status=200
+[[redirects]]
+from="/api/music-status"
+to="/.netlify/functions/music-status"
+status=200
